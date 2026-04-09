@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Follow-up Tracker</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #efefed;
+    --text: #1a1a18;
+    --text2: #6b6b67;
+    --text3: #9b9b96;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --radius: 8px;
+    --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #272725;
+      --bg3: #313130;
+      --text: #f0f0ee;
+      --text2: #a0a09c;
+      --text3: #6b6b67;
+      --border: rgba(255,255,255,0.12);
+      --border2: rgba(255,255,255,0.22);
+    }
+  }
+  body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; }
+  .container { max-width: 720px; margin: 0 auto; padding: 2rem 1rem; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; gap: 12px; flex-wrap: wrap; }
+  .title { font-size: 20px; font-weight: 600; color: var(--text); }
+  .subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .btn { font-size: 13px; font-weight: 500; padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text); cursor: pointer; transition: background 0.15s; }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: transparent; }
+  .btn-primary:hover { opacity: 0.85; background: var(--text); }
+  .btn-sm { font-size: 12px; padding: 5px 10px; }
+  .btn-success { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
+  .btn-success:hover { background: #C0DD97; }
+  .btn-danger { background: #FCEBEB; color: #791F1F; border-color: #F7C1C1; }
+  .btn-danger:hover { background: #F7C1C1; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat { background: var(--bg2); border-radius: var(--radius); padding: 0.75rem 1rem; }
+  .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .stat-val { font-size: 22px; font-weight: 600; color: var(--text); }
+  .filters { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .filter-btn { font-size: 12px; padding: 4px 12px; border-radius: 20px; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .filter-btn.active { background: var(--text); color: var(--bg); border-color: transparent; }
+  .search { flex: 1; min-width: 160px; font-size: 13px; padding: 7px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+  .search:focus { outline: none; border-color: var(--text3); }
+  .leads { display: flex; flex-direction: column; gap: 8px; }
+  .lead-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.25rem; transition: border-color 0.15s; }
+  .lead-card:hover { border-color: var(--border2); }
+  .lead-card.done { opacity: 0.45; }
+  .lead-card.overdue { border-left: 3px solid #E24B4A; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
+  .lead-card.today-due { border-left: 3px solid #639922; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
+  .lead-top { display: flex; align-items: flex-start; gap: 12px; }
+  .lead-check { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border2); background: transparent; cursor: pointer; flex-shrink: 0; margin-top: 2px; appearance: none; -webkit-appearance: none; position: relative; transition: all 0.15s; }
+  .lead-check:checked { background: var(--text); border-color: var(--text); }
+  .lead-check:checked::after { content: ''; position: absolute; top: 2px; left: 5px; width: 4px; height: 8px; border: 2px solid var(--bg); border-top: none; border-left: none; transform: rotate(45deg); }
+  .lead-main { flex: 1; min-width: 0; }
+  .lead-name { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .lead-meta { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .lead-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 0.5px solid var(--border); color: var(--text2); background: var(--bg2); }
+  .tag-overdue { background: #FCEBEB; color: #A32D2D; border-color: #F7C1C1; }
+  .tag-today { background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; }
+  .tag-upcoming { background: #E6F1FB; color: #185FA5; border-color: #B5D4F4; }
+  .tag-synced { background: #EAF3DE; color: #3B6D11; border-color: #C0DD97; }
+  .lead-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .lead-notes { font-size: 12px; color: var(--text2); border-top: 0.5px solid var(--border); padding-top: 8px; margin-top: 8px; }
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 1rem; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); padding: 1.5rem; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1.25rem; color: var(--text); }
+  .field { margin-bottom: 1rem; }
+  .field label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .field input, .field textarea, .field select { width: 100%; font-size: 14px; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-family: var(--font); }
+  .field input:focus, .field textarea:focus { outline: none; border-color: var(--text3); }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.25rem; }
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text2); font-size: 14px; }
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; font-size: 13px; padding: 10px 16px; border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--bg); color: var(--text); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .toast.show { opacity: 1; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .cal-notice { background: #E6F1FB; color: #185FA5; border: 0.5px solid #B5D4F4; border-radius: var(--radius); padding: 10px 14px; font-size: 13px; margin-bottom: 1.25rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="toast" class="toast"></div>
+
+  <div class="header">
+    <div>
+      <div class="title">Lead Follow-up Tracker</div>
+      <div class="subtitle">Scalestro — tree service & lawn care lead pipeline</div>
+    </div>
+    <button class="btn btn-primary" onclick="openModal()">+ Add lead</button>
+  </div>
+
+  <div class="cal-notice">
+    <strong>Google Calendar sync:</strong> Uses the Google Calendar API via Claude. Paste your API key below or use the manual calendar link fallback per lead.
+    <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="api-key" type="password" placeholder="Anthropic API key (optional for direct sync)" style="flex:1;min-width:200px;font-size:13px;padding:6px 10px;border:0.5px solid #B5D4F4;border-radius:6px;background:#fff;color:#185FA5">
+      <button class="btn btn-sm" onclick="saveKey()" style="white-space:nowrap">Save key</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Active leads</div><div class="stat-val" id="s-active">0</div></div>
+    <div class="stat"><div class="stat-label">Follow up today</div><div class="stat-val" id="s-today">0</div></div>
+    <div class="stat"><div class="stat-label">Overdue</div><div class="stat-val" id="s-overdue">0</div></div>
+  </div>
+
+  <div class="filters">
+    <input class="search" id="search" placeholder="Search leads..." oninput="render()">
+    <button class="filter-btn active" onclick="setFilter('active',this)">Active</button>
+    <button class="filter-btn" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('done',this)">Done</button>
+    <button class="filter-btn" onclick="setFilter('overdue',this)">Overdue</button>
+  </div>
+
+  <div class="leads" id="leads"></div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Add lead</div>
+    <div class="field"><label>Name *</label><input id="f-name" placeholder="e.g. John Smith - ABC Tree Service"></div>
+    <div class="field"><label>Contact (phone / email)</label><input id="f-contact" placeholder="+1 555 000 0000"></div>
+    <div class="field"><label>Service / notes</label><textarea id="f-notes" placeholder="What they need, location, objections..."></textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Follow-up every (days) *</label><input id="f-interval" type="number" min="1" value="3"></div>
+      <div class="field"><label>Preferred time</label><input id="f-time" type="time" value="09:00"></div>
+    </div>
+    <div class="field"><label>First follow-up date *</label><input id="f-date" type="date"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveLead()">Save & sync to calendar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let leads = [];
+let filter = 'active';
+let editId = null;
+let apiKey = localStorage.getItem('anthropic_key') || '';
+
+function saveKey() {
+  apiKey = document.getElementById('api-key').value.trim();
+  if (apiKey) { localStorage.setItem('anthropic_key', apiKey); showToast('API key saved'); }
+}
+
+function today() { return new Date().toISOString().split('T')[0]; }
+function daysUntil(d) { return Math.ceil((new Date(d) - new Date(today())) / 864e5); }
+function getStatus(l) {
+  if (l.done) return 'done';
+  const d = daysUntil(l.nextDate);
+  if (d < 0) return 'overdue';
+  if (d === 0) return 'today';
+  return 'upcoming';
+}
+
+function showToast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = ok ? '#EAF3DE' : '#FCEBEB';
+  t.style.color = ok ? '#27500A' : '#791F1F';
+  t.style.borderColor = ok ? '#C0DD97' : '#F7C1C1';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function load() {
+  try { leads = JSON.parse(localStorage.getItem('scalestro_leads') || '[]'); } catch(e) { leads = []; }
+  if (apiKey) document.getElementById('api-key').value = apiKey;
+  render();
+}
+
+function save() { localStorage.setItem('scalestro_leads', JSON.stringify(leads)); }
+
+function setFilter(f, el) {
+  filter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function openModal(id) {
+  editId = id || null;
+  document.getElementById('modal-title').textContent = id ? 'Edit lead' : 'Add lead';
+  document.getElementById('save-btn').textContent = id ? 'Save & update calendar' : 'Save & sync to calendar';
+  if (id) {
+    const l = leads.find(x => x.id === id);
+    document.getElementById('f-name').value = l.name;
+    document.getElementById('f-contact').value = l.contact || '';
+    document.getElementById('f-notes').value = l.notes || '';
+    document.getElementById('f-interval').value = l.interval;
+    document.getElementById('f-time').value = l.time || '09:00';
+    document.getElementById('f-date').value = l.nextDate;
+  } else {
+    ['f-name','f-contact','f-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-interval').value = '3';
+    document.getElementById('f-time').value = '09:00';
+    document.getElementById('f-date').value = today();
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+function calFallbackUrl(lead) {
+  const d = lead.nextDate.replace(/-/g, '');
+  const t = (lead.time || '09:00').replace(':', '');
+  const start = d + 'T' + t + '00';
+  const endH = String(parseInt(t.slice(0,2)) + 1).padStart(2,'0');
+  const end = d + 'T' + endH + t.slice(2) + '00';
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('Follow up: ' + lead.name) + '&dates=' + start + '/' + end + '&details=' + encodeURIComponent('Contact: ' + (lead.contact||'-') + '\n' + (lead.notes||'')) + '&recur=RRULE:FREQ%3DDAILY;INTERVAL%3D' + lead.interval;
+}
+
+async function syncToCalendar(lead) {
+  const btn = document.getElementById('sync-btn-' + lead.id);
+  if (btn) { btn.innerHTML = '<span class="spin"></span>Syncing...'; btn.disabled = true; }
+
+  if (!apiKey) {
+    window.open(calFallbackUrl(lead), '_blank');
+    showToast('Opened Google Calendar — save manually (add API key for auto-sync)');
+    if (btn) { btn.innerHTML = 'Sync to calendar'; btn.disabled = false; }
+    return;
+  }
+
+  const [h, m] = (lead.time || '09:00').split(':');
+  const startDt = lead.nextDate + 'T' + h.padStart(2,'0') + ':' + m.padStart(2,'0') + ':00';
+  const endH = String(parseInt(h) + 1).padStart(2,'0');
+  const endDt = lead.nextDate + 'T' + endH + ':' + m.padStart(2,'0') + ':00';
+
+  const eventBody = {
+    summary: 'Follow up: ' + lead.name,
+    description: 'Contact: ' + (lead.contact||'-') + '\n\n' + (lead.notes||''),
+    start: { dateTime: startDt, timeZone: 'Asia/Kathmandu' },
+    end: { dateTime: endDt, timeZone: 'Asia/Kathmandu' },
+    recurrence: ['RRULE:FREQ=DAILY;INTERVAL=' + lead.interval],
+    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 30 }, { method: 'email', minutes: 60 }] }
+  };
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: 'You are a calendar assistant. Use the Google Calendar MCP tool to create the event. Return only JSON: {"success":true,"eventId":"...","htmlLink":"..."} or {"success":false,"error":"..."}.',
+        messages: [{ role: 'user', content: 'Create this Google Calendar event: ' + JSON.stringify(eventBody) }],
+        mcp_servers: [{ type: 'url', url: 'https://gcal.mcp.claude.com/mcp', name: 'gcal' }]
+      })
+    });
+    const data = await resp.json();
+    const textBlock = data.content && data.content.find(c => c.type === 'text');
+    let result = { success: false, error: 'No response' };
+    if (textBlock) {
+      try { result = JSON.parse(textBlock.text.replace(/```json|```/g, '').trim()); }
+      catch(e) { result = { success: true }; }
+    }
+    if (result.success !== false) {
+      const l = leads.find(x => x.id === lead.id);
+      if (l) { l.calSynced = true; l.calLink = result.htmlLink || null; }
+      save(); render();
+      showToast('Synced to Google Calendar — repeats every ' + lead.interval + ' days');
+    } else {
+      showToast('Calendar sync failed: ' + (result.error || 'unknown'), false);
+      if (btn) { btn.innerHTML = 'Sync to calendar'; btn.disabled = false; }
+    }
+  } catch(e) {
+    showToast('Error: ' + e.message, false);
+    if (btn) { btn.innerHTML = 'Sync to calendar'; btn.disabled = false; }
+  }
+}
+
+async function saveLead() {
+  const name = document.getElementById('f-name').value.trim();
+  const interval = parseInt(document.getElementById('f-interval').value) || 3;
+  const nextDate = document.getElementById('f-date').value || today();
+  if (!name) { showToast('Name is required', false); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.innerHTML = '<span class="spin"></span>Saving...';
+  btn.disabled = true;
+
+  let lead;
+  if (editId) {
+    lead = leads.find(x => x.id === editId);
+    Object.assign(lead, { name, contact: document.getElementById('f-contact').value.trim(), notes: document.getElementById('f-notes').value.trim(), interval, time: document.getElementById('f-time').value, nextDate, calSynced: false });
+  } else {
+    lead = { id: Date.now().toString(), name, contact: document.getElementById('f-contact').value.trim(), notes: document.getElementById('f-notes').value.trim(), interval, time: document.getElementById('f-time').value || '09:00', nextDate, done: false, created: today(), calSynced: false, calLink: null };
+    leads.unshift(lead);
+  }
+  save(); closeModal(); render();
+  btn.innerHTML = editId ? 'Save & update calendar' : 'Save & sync to calendar';
+  btn.disabled = false;
+  await syncToCalendar(lead);
+}
+
+function toggleDone(id) {
+  const l = leads.find(x => x.id === id);
+  l.done = !l.done;
+  save(); render();
+}
+
+function deleteLead(id) {
+  if (!confirm('Delete this lead?')) return;
+  leads = leads.filter(x => x.id !== id);
+  save(); render();
+}
+
+function snooze(id) {
+  const l = leads.find(x => x.id === id);
+  const base = l.nextDate < today() ? today() : l.nextDate;
+  const d = new Date(base);
+  d.setDate(d.getDate() + l.interval);
+  l.nextDate = d.toISOString().split('T')[0];
+  l.calSynced = false;
+  save(); render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  let list = leads.filter(l => {
+    if (q && !l.name.toLowerCase().includes(q) && !(l.contact||'').toLowerCase().includes(q)) return false;
+    const s = getStatus(l);
+    if (filter === 'active') return !l.done;
+    if (filter === 'done') return l.done;
+    if (filter === 'overdue') return s === 'overdue';
+    return true;
+  });
+  list.sort((a,b) => { if (a.done !== b.done) return a.done ? 1 : -1; return new Date(a.nextDate) - new Date(b.nextDate); });
+
+  const active = leads.filter(l => !l.done);
+  document.getElementById('s-active').textContent = active.length;
+  document.getElementById('s-today').textContent = active.filter(l => getStatus(l) === 'today').length;
+  document.getElementById('s-overdue').textContent = active.filter(l => getStatus(l) === 'overdue').length;
+
+  const el = document.getElementById('leads');
+  if (!list.length) { el.innerHTML = '<div class="empty">No leads found.</div>'; return; }
+
+  el.innerHTML = list.map(l => {
+    const s = getStatus(l);
+    const du = daysUntil(l.nextDate);
+    let statusTag = '';
+    if (!l.done) {
+      if (s === 'overdue') statusTag = '<span class="tag tag-overdue">' + Math.abs(du) + 'd overdue</span>';
+      else if (s === 'today') statusTag = '<span class="tag tag-today">Today</span>';
+      else statusTag = '<span class="tag tag-upcoming">In ' + du + 'd &middot; ' + l.nextDate + '</span>';
+    }
+    const syncTag = l.calSynced ? '<span class="tag tag-synced">Cal synced</span>' : '<span class="tag">Not synced</span>';
+    const calBtn = l.calSynced
+      ? `<button class="btn btn-sm btn-success" onclick="syncToCalendar(leads.find(x=>x.id==='${l.id}'))">Re-sync</button>`
+      : `<button class="btn btn-sm" id="sync-btn-${l.id}" onclick="syncToCalendar(leads.find(x=>x.id==='${l.id}'))">Sync to calendar</button>`;
+
+    return `<div class="lead-card ${l.done?'done':''} ${s==='overdue'&&!l.done?'overdue':''} ${s==='today'&&!l.done?'today-due':''}">
+  <div class="lead-top">
+    <input type="checkbox" class="lead-check" ${l.done?'checked':''} onchange="toggleDone('${l.id}')">
+    <div class="lead-main">
+      <div class="lead-name">${l.name}</div>
+      ${l.contact ? '<div class="lead-meta">' + l.contact + '</div>' : ''}
+      <div class="lead-tags">${statusTag}<span class="tag">Every ${l.interval}d &middot; ${l.time||'09:00'}</span>${syncTag}</div>
+      <div class="lead-actions">
+        ${!l.done ? calBtn : ''}
+        ${!l.done ? `<button class="btn btn-sm" onclick="snooze('${l.id}')">Snooze +${l.interval}d</button>` : ''}
+        <button class="btn btn-sm" onclick="openModal('${l.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLead('${l.id}')">Delete</button>
+      </div>
+      ${l.notes ? '<div class="lead-notes">' + l.notes + '</div>' : ''}
+    </div>
+  </div>
+</div>`;
+  }).join('');
+}
+
+document.getElementById('f-date').value = today();
+load();
+</script>
+</body>
+</html>
